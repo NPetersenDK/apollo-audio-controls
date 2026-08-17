@@ -88,6 +88,7 @@ function connect() {
       if (!cfg) cfg = msg.config;
       state = msg.state;
       if (state.device) $('deviceInput').value = state.device;
+      if (state.session) appendLog('connected to ' + state.device, 'ok');
       buildFlagButtons();
       render();
       // Connect failed: let the error line arrive, then drop back.

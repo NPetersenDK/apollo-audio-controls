@@ -16,6 +16,9 @@ import (
 // Grace period after the browser lets go, so a reload does not churn sockets.
 const sessionLinger = 5 * time.Second
 
+// A status query is repeated this many times before we call it unanswered.
+const pollAttempts = 4
+
 type Config struct {
 	DeviceIP    string
 	IfaceIP     string // empty = work out the interface towards the device
@@ -157,8 +160,9 @@ func (d *Device) wait(pred func(State) bool, timeout time.Duration) (State, bool
 
 // --- session lifetime ---
 
-// Acquire opens the session. started is true for the connection that opened
-// it; a session already running keeps the address it was opened with.
+// Acquire opens the session. started is true when this is the only client,
+// so the caller knows to read the status in; a session already running keeps
+// the address it was opened with.
 func (d *Device) Acquire(deviceIP string) (started bool, err error) {
 	d.mu.Lock()
 	defer d.mu.Unlock()
@@ -170,7 +174,9 @@ func (d *Device) Acquire(deviceIP string) (started bool, err error) {
 	}
 	if d.sess != nil {
 		d.publishLocked()
-		return false, nil
+		// Reusing a session nobody was left on: read the state in again,
+		// since the device may have moved while we were gone.
+		return d.refs == 1, nil
 	}
 	if deviceIP != "" {
 		if net.ParseIP(deviceIP) == nil {
@@ -256,8 +262,8 @@ func (d *Device) startLocked() error {
 	d.state.Iface = localIP.String()
 	go d.readLoop(s)
 
-	d.logf("ok", "connected to %s: listening on %s:%d via %s (%s), sending from %s",
-		d.cfg.DeviceIP, stateGroupIP, stateGroupPort, iface.Name, localIP, tx.LocalAddr())
+	d.logf("debug", "listening on %s:%d via %s (%s), sending from %s",
+		stateGroupIP, stateGroupPort, iface.Name, localIP, tx.LocalAddr())
 	return nil
 }
 
@@ -271,7 +277,7 @@ func (d *Device) stopLocked() {
 	close(s.done)
 	_ = s.rx.Close()
 	_ = s.tx.Close()
-	d.logf("warn", "disconnected from %s: multicast group left, no traffic to the device", s.deviceIP)
+	d.logf("warn", "disconnected from %s, multicast group left", s.deviceIP)
 }
 
 // Shutdown closes any open session when the program exits.
@@ -340,7 +346,8 @@ func (d *Device) handleFrame(f frame) {
 			return
 		}
 		d.mu.Lock()
-		changed := !d.state.HaveFlags || d.state.Flags != st.Flags || d.state.Detect != st.Detect
+		// A first reading is reported by Poll, so only report movement here.
+		changed := d.state.HaveFlags && (d.state.Flags != st.Flags || d.state.Detect != st.Detect)
 		d.state.HaveFlags = true
 		d.state.Flags = st.Flags
 		d.state.Detect = st.Detect
@@ -385,14 +392,23 @@ func (d *Device) Poll(timeout time.Duration) (State, error) {
 	defer d.cmdMu.Unlock()
 
 	before := d.Snapshot().FlagsRev
-	// The device drops queries arriving too soon after a command.
-	for attempt := 0; attempt < 3; attempt++ {
+	// The device drops queries arriving too soon after a command, and a
+	// switch that has just seen our IGMP join needs a moment to forward the
+	// group again, so ask more than once.
+	for attempt := 0; attempt < pollAttempts; attempt++ {
 		if err := d.send(func(sender [8]byte, seq uint16) ([]byte, error) {
 			return buildStatusQuery(sender, seq), nil
 		}); err != nil {
 			return State{}, err
 		}
-		if st, ok := d.wait(func(s State) bool { return s.FlagsRev > before }, timeout/3); ok {
+		if st, ok := d.wait(func(s State) bool { return s.FlagsRev > before }, timeout/pollAttempts); ok {
+			// An explicit read always reports back, even when nothing moved,
+			// so Connect and Refresh are never silent.
+			plug := "nothing plugged in"
+			if st.Plugged {
+				plug = "connected"
+			}
+			d.logf("debug", "status 0x%02x  %s  (input: %s)", st.Flags, fmtFlags(st.Flags), plug)
 			return st, nil
 		}
 	}

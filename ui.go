@@ -19,8 +19,11 @@ var appCSS string
 var appJS string
 
 const (
-	pollTimeout = 2 * time.Second
+	pollTimeout = 4 * time.Second
 	cmdTimeout  = 3 * time.Second
+
+	// A fresh multicast join takes a moment to reach the switch.
+	joinSettle = 250 * time.Millisecond
 )
 
 // Server ties HTTP to the device. Commands need an open session.
@@ -151,6 +154,7 @@ func (s *Server) handleEvents(w http.ResponseWriter, r *http.Request) {
 	// Opening the session reads the switch state in; a second window does not.
 	if started {
 		go func() {
+			time.Sleep(joinSettle)
 			_, _ = s.dev.Poll(pollTimeout)
 		}()
 	}
