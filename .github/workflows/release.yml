@@ -1,0 +1,117 @@
+name: Build & Publish Apollo Audio Controls Binaries
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write # create GitHub releases
+
+env:
+  BINARY_NAME: apollo-audio-controls
+
+jobs:
+  test-go:
+    name: Test Go Web Interface
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Verify Go compilation
+        run: |
+          go vet ./...
+          go build -v ./...
+
+      - name: Run unit tests
+        run: go test ./...
+
+  build-binaries:
+    name: Build (${{ matrix.goos }}/${{ matrix.goarch }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - goos: darwin
+            goarch: arm64
+          - goos: linux
+            goarch: amd64
+          - goos: linux
+            goarch: arm64
+          - goos: windows
+            goarch: amd64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build and package
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+          CGO_ENABLED: '0'
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+          bin="$BINARY_NAME"
+          if [ "$GOOS" = "windows" ]; then bin="$BINARY_NAME.exe"; fi
+          go build -ldflags "-s -w -X main.version=${GITHUB_REF_NAME}" -o "dist/$bin" .
+          name="${BINARY_NAME}_${GITHUB_REF_NAME}_${GOOS}_${GOARCH}"
+          if [ "$GOOS" = "windows" ]; then
+            (cd dist && zip "../${name}.zip" "$bin")
+          else
+            tar -czf "${name}.tar.gz" -C dist "$bin"
+          fi
+
+      - name: Upload archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: binaries-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: |
+            *.tar.gz
+            *.zip
+          if-no-files-found: error
+          retention-days: 1
+
+  # Tag v1.2.3 is published as "Version 1.2.3".
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-binaries, test-go]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download all archives
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/artifacts
+          pattern: binaries-*
+          merge-multiple: true
+
+      - name: Extract version number from tag
+        id: version
+        run: echo "number=${GITHUB_REF_NAME#v}" >> "$GITHUB_OUTPUT"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Version ${{ steps.version.outputs.number }}
+          files: /tmp/artifacts/*
+          generate_release_notes: true

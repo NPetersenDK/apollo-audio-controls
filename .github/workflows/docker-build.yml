@@ -1,0 +1,214 @@
+name: Build & Publish Apollo Audio Controls Container
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: npetersendk/apollo-audio-controls
+
+jobs:
+  test-go:
+    name: Test Go Web Interface
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Verify Go compilation
+        run: |
+          go vet ./...
+          go build -v ./...
+
+      - name: Run unit tests
+        run: go test ./...
+
+  build-arch:
+    name: Build (${{ matrix.platform }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - linux/amd64
+          - linux/arm64
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up QEMU
+        if: matrix.platform == 'linux/arm64'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm64
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract platform-specific tag suffix
+        id: platform-tag
+        run: |
+          PLATFORM_PAIR="${{ matrix.platform }}"
+          ARCH="${PLATFORM_PAIR#*/}"
+          echo "arch=${ARCH}" >> "$GITHUB_OUTPUT"
+
+      - name: Build and Push Platform Image by Digest
+        id: build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          platforms: ${{ matrix.platform }}
+          provenance: false
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          outputs: type=image,name=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }},push-by-digest=true,name-canonical=true,push=true
+          # Registry cache, not type=gha: that one is scoped per ref and this only runs on tags.
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ steps.platform-tag.outputs.arch }}
+          cache-to: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-${{ steps.platform-tag.outputs.arch }},mode=max
+
+      - name: Export digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - name: Upload digest
+        uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ steps.platform-tag.outputs.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  # No tag should point at an image that cannot start.
+  smoke-test:
+    name: Start Container & Verify
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build image for the local runner
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          tags: apollo-audio-controls:smoke
+          build-args: |
+            VERSION=${{ github.ref_name }}
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:buildcache-amd64
+
+      - name: Start the container and check the interface
+        run: |
+          set -euo pipefail
+          docker run -d --name smoke -p 8090:8090 apollo-audio-controls:smoke
+
+          for _ in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:8090/api/config > /dev/null 2>&1; then break; fi
+            sleep 1
+          done
+
+          curl -fsS http://127.0.0.1:8090/ | grep -q "Apollo Audio Controls"
+          curl -fsS http://127.0.0.1:8090/api/config | grep -q "\"version\":\"${GITHUB_REF_NAME}\""
+          # Nobody pressed Connect, so it must be idle.
+          curl -fsS http://127.0.0.1:8090/api/state | grep -q '"session":false'
+
+          docker logs smoke
+          docker rm -f smoke
+
+  merge-manifests:
+    name: Merge & Publish Multi-Arch Manifest
+    needs: [build-arch, test-go, smoke-test]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Download all digests
+        uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Docker metadata (tags & labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=sha,format=short
+
+      - name: Create and push multi-arch manifest
+        working-directory: /tmp/digests
+        env:
+          TAGS: ${{ steps.meta.outputs.tags }}
+        run: |
+          TAG_ARGS=()
+          while IFS= read -r tag; do
+            [ -n "$tag" ] && TAG_ARGS+=( "-t" "$tag" )
+          done <<< "$TAGS"
+
+          DIGEST_ARGS=()
+          for f in *; do
+            DIGEST_ARGS+=( "${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@sha256:$f" )
+          done
+
+          docker buildx imagetools create "${TAG_ARGS[@]}" "${DIGEST_ARGS[@]}"
+
+      - name: Inspect final multi-arch image
+        run: |
+          docker buildx imagetools inspect ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ steps.meta.outputs.version }} || true

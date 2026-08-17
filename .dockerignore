@@ -1,0 +1,6 @@
+.git
+.github
+python
+dist
+*.md
+*_test.go

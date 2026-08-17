@@ -1,0 +1,11 @@
+# Mapping tools and raw captures, kept local.
+python/
+
+# Build output
+apollo-audio-controls
+apollo-audio-controls.exe
+dist/
+*.tar.gz
+*.zip
+
+.DS_Store
