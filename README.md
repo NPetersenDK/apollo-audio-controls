@@ -9,6 +9,12 @@ I think UAD Console is a crappy software, you need several components, etc. With
 
 Only tested on an Apollo e1x, and most likely the only thing it works with.
 
+## Disclaimer
+
+There is no security here. The web interface has no login, and anyone who can reach the port can control the device. The control protocol itself has no authentication either, so anyone on the Dante network can do the same without this tool. Keep both on a network you trust.
+
+**AI was used heavily to build this.**
+
 ## Running
 
 One Go binary with the interface embedded, no dependencies beyond the standard
