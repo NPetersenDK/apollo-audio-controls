@@ -30,38 +30,60 @@ const (
 type Server struct {
 	dev *Device
 	bus *EventBus
+
+	// BasePath lets the service be mounted under a path prefix behind a
+	// reverse proxy, e.g. "/apollo". Empty means the service owns the root.
+	// It must not have a trailing slash.
+	BasePath string
 }
 
 func (s *Server) Routes(mux *http.ServeMux) {
+	base := s.BasePath
+
+	// If mounted under a prefix, redirect the bare prefix to the trailing
+	// slash so relative asset/API paths in the HTML resolve correctly.
+	if base != "" {
+		mux.HandleFunc("GET "+base, func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path == base {
+				http.Redirect(w, r, base+"/", http.StatusMovedPermanently)
+				return
+			}
+			http.NotFound(w, r)
+		})
+	}
+
 	// UI
-	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
-		if r.URL.Path != "/" && r.URL.Path != "/index.html" {
+	mux.HandleFunc("GET "+base+"/", func(w http.ResponseWriter, r *http.Request) {
+		p := strings.TrimPrefix(r.URL.Path, base)
+		if p != "/" && p != "/index.html" {
 			http.NotFound(w, r)
 			return
 		}
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write([]byte(strings.ReplaceAll(indexHTML, "{{VERSION}}", version)))
+		html := strings.ReplaceAll(indexHTML, "{{VERSION}}", version)
+		html = strings.ReplaceAll(html, "{{BASE}}", base)
+		_, _ = w.Write([]byte(html))
 	})
-	mux.HandleFunc("GET /app.css", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET "+base+"/app.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		_, _ = w.Write([]byte(appCSS))
 	})
-	mux.HandleFunc("GET /app.js", func(w http.ResponseWriter, r *http.Request) {
+	mux.HandleFunc("GET "+base+"/app.js", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
 		_, _ = w.Write([]byte(appJS))
 	})
 
 	// SSE -- this connection is what keeps the session to the device open.
-	mux.HandleFunc("GET /api/events", s.handleEvents)
+	mux.HandleFunc("GET "+base+"/api/events", s.handleEvents)
 
 	// Reads without network traffic: both answer from the cached state.
-	mux.HandleFunc("GET /api/config", s.handleConfig)
-	mux.HandleFunc("GET /api/state", s.handleState)
+	mux.HandleFunc("GET "+base+"/api/config", s.handleConfig)
+	mux.HandleFunc("GET "+base+"/api/state", s.handleState)
 
 	// Commands -- the only code in the program that sends to the device.
-	mux.HandleFunc("POST /api/refresh", s.handleRefresh)
-	mux.HandleFunc("POST /api/gain", s.handleGain)
-	mux.HandleFunc("POST /api/flag", s.handleFlag)
+	mux.HandleFunc("POST "+base+"/api/refresh", s.handleRefresh)
+	mux.HandleFunc("POST "+base+"/api/gain", s.handleGain)
+	mux.HandleFunc("POST "+base+"/api/flag", s.handleFlag)
 }
 
 func writeJSON(w http.ResponseWriter, code int, v any) {

@@ -1,6 +1,10 @@
 const $ = id => document.getElementById(id);
 const logContainer = $('log');
 
+// Prefix for every API call, so the app still works when the service is
+// mounted under a path prefix behind a reverse proxy (e.g. /apollo).
+const BASE = window.APOLLO_BASE || '';
+
 // The session lives exactly as long as this EventSource.
 let es = null;
 let cfg = null;
@@ -80,7 +84,7 @@ function connect() {
   }
   localStorage.setItem('e1xDevice', ip);
   appendLog('connecting to ' + ip, 'debug');
-  es = new EventSource('/api/events?device=' + encodeURIComponent(ip));
+  es = new EventSource(BASE + '/api/events?device=' + encodeURIComponent(ip));
   es.onmessage = ev => {
     let msg;
     try { msg = JSON.parse(ev.data); } catch { return; }
@@ -215,7 +219,7 @@ function render() {
 // --- actions ---
 
 $('refreshBtn').addEventListener('click', async () => {
-  try { await post('/api/refresh', {}, 'Refresh'); } catch { /* shown as a toast */ }
+  try { await post(BASE + '/api/refresh', {}, 'Refresh'); } catch { /* shown as a toast */ }
 });
 
 $('gainRange').addEventListener('input', () => {
@@ -241,7 +245,7 @@ async function sendGain(db) {
   pendingGain = db;
   render();
   try {
-    await post('/api/gain', { db }, 'Set gain');
+    await post(BASE + '/api/gain', { db }, 'Set gain');
     pendingGain = null;
     render();
   } catch {
@@ -269,7 +273,7 @@ $('phantomConfirm').addEventListener('click', () => {
 
 async function sendFlag(f, on, yes) {
   try {
-    await post('/api/flag', { name: f.name, on, yes }, f.label);
+    await post(BASE + '/api/flag', { name: f.name, on, yes }, f.label);
   } catch {
     // Already shown; the device's own report decides what is displayed.
   }
@@ -277,11 +281,11 @@ async function sendFlag(f, on, yes) {
 
 // Prefill from the server; nothing reaches the device until Connect.
 (async function init() {
-  cfg = await apiJSON('/api/config', {}, 'Startup').catch(() => null);
+  cfg = await apiJSON(BASE + '/api/config', {}, 'Startup').catch(() => null);
   if (!cfg) return;
   $('deviceInput').value = localStorage.getItem('e1xDevice') || cfg.device;
   buildFlagButtons();
-  state = await apiJSON('/api/state', {}, 'Startup').catch(() => ({ session: false }));
+  state = await apiJSON(BASE + '/api/state', {}, 'Startup').catch(() => ({ session: false }));
   state.session = false;
   render();
 })();
