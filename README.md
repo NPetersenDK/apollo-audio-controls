@@ -32,6 +32,7 @@ go build -o apollo-audio-controls .
 | `-device` | device IP the address field starts out with |
 | `-iface` | local interface IP, if the automatic pick is wrong |
 | `-lock-48v` | block 48V entirely, including from the interface |
+| `-base-path` | place the interface under a subpath, e.g. `/apollo` |
 
 Binaries for macOS (arm64), Linux (amd64, arm64) and Windows are attached to
 each release. The container image needs host networking, because control runs

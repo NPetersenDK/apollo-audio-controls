@@ -11,6 +11,7 @@ import (
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -140,17 +141,34 @@ func envBool(key string, def bool) bool {
 	return def
 }
 
+// normalizeBasePath ensures a base path has a leading slash and no trailing
+// slash, e.g. "apollo/" -> "/apollo", "" -> "".
+func normalizeBasePath(p string) string {
+	p = strings.TrimSpace(p)
+	p = strings.TrimSuffix(p, "/")
+	if p == "" {
+		return ""
+	}
+	if !strings.HasPrefix(p, "/") {
+		p = "/" + p
+	}
+	return p
+}
+
 func main() {
 	var (
-		port    = flag.String("port", env("PORT", "8090"), "HTTP port")
-		listen  = flag.String("listen", env("LISTEN", ""), "listen address, e.g. 127.0.0.1 (empty = all interfaces)")
-		device  = flag.String("device", env("E1X_DEVICE", ""), "device IP to prefill in the interface")
-		iface   = flag.String("iface", env("E1X_IFACE", ""), "local interface IP on the Dante network (empty = work it out)")
-		lock48v = flag.Bool("lock-48v", envBool("E1X_LOCK_48V", false), "block 48V entirely, including from the UI")
+		port     = flag.String("port", env("PORT", "8090"), "HTTP port")
+		listen   = flag.String("listen", env("LISTEN", ""), "listen address, e.g. 127.0.0.1 (empty = all interfaces)")
+		device   = flag.String("device", env("E1X_DEVICE", ""), "device IP to prefill in the interface")
+		iface    = flag.String("iface", env("E1X_IFACE", ""), "local interface IP on the Dante network (empty = work it out)")
+		lock48v  = flag.Bool("lock-48v", envBool("E1X_LOCK_48V", false), "block 48V entirely, including from the UI")
+		basePath = flag.String("base-path", env("BASE_PATH", ""), "URL path prefix to serve under, e.g. /apollo (empty = none)")
 	)
 	flag.Parse()
 
 	setupLogging()
+
+	normalizedBase := normalizeBasePath(*basePath)
 
 	bus := NewEventBus()
 	dev := NewDevice(Config{
@@ -159,7 +177,7 @@ func main() {
 		LockPhantom: *lock48v,
 	}, bus)
 
-	srv := &Server{dev: dev, bus: bus}
+	srv := &Server{dev: dev, bus: bus, BasePath: normalizedBase}
 	mux := http.NewServeMux()
 	srv.Routes(mux)
 
@@ -175,7 +193,7 @@ func main() {
 
 	go func() {
 		slog.Info("apollo-e1x web interface listening",
-			"addr", addr, "device", *device, "version", version)
+			"addr", addr, "device", *device, "version", version, "base_path", normalizedBase)
 		slog.Info("no traffic is sent to the device until a browser connects")
 		if err := httpServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			fatal("http server failed", "err", err)
