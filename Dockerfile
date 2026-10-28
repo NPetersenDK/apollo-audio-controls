@@ -1,6 +1,6 @@
 # --- build ---
 # Native runner, cross-compiled to the target buildx asks for.
-FROM --platform=$BUILDPLATFORM golang:1.26-alpine AS builder
+FROM --platform=$BUILDPLATFORM golang:1.27-alpine AS builder
 ARG TARGETOS
 ARG TARGETARCH
 ARG VERSION=dev
