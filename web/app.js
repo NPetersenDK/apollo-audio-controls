@@ -24,7 +24,8 @@ function nowTs() {
 
 function appendLog(message, level, ts) {
   const entry = document.createElement('div');
-  entry.className = 'log-entry log-' + (level || 'debug');
+  const lvl = level || 'debug';
+  entry.className = 'log-entry' + (['warn', 'err', 'debug'].includes(lvl) ? ' ' + lvl : '');
   entry.textContent = '[' + (ts || nowTs()) + '] ' + message;
   logContainer.appendChild(entry);
   logContainer.scrollTop = logContainer.scrollHeight;
@@ -33,20 +34,8 @@ function appendLog(message, level, ts) {
 $('clearBtn').addEventListener('click', () => logContainer.innerHTML = '');
 
 function showToast(message, kind = 'danger', title = 'Error') {
-  const host = $('toastContainer');
-  if (!host) return;
-  const id = 'toast-' + Date.now() + '-' + Math.floor(Math.random() * 1000);
-  const cls = kind === 'warning' ? 'text-bg-warning' : (kind === 'success' ? 'text-bg-success' : 'text-bg-danger');
-  host.insertAdjacentHTML('beforeend', `<div id="${id}" class="toast ${cls} border-0" role="alert" aria-live="assertive" aria-atomic="true">
-    <div class="d-flex">
-      <div class="toast-body"><strong>${esc(title)}:</strong> ${esc(message)}</div>
-      <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast" aria-label="Close"></button>
-    </div>
-  </div>`);
-  const el = $(id);
-  const t = new bootstrap.Toast(el, { delay: 5500 });
-  el.addEventListener('hidden.bs.toast', () => el.remove());
-  t.show();
+  const k = kind === 'warning' ? 'warn' : (kind === 'success' ? 'ok' : 'err');
+  dsToast(title + ': ' + message, k);
 }
 
 async function apiJSON(url, opts = {}, actionLabel = 'Request') {
@@ -134,13 +123,26 @@ function buildFlagButtons() {
   $('gainPending').textContent = `${cfg.gain_min}-${cfg.gain_max} dB, 1 dB per step`;
   cfg.flags.forEach(f => {
     const btn = document.createElement('button');
-    btn.className = 'btn btn-sm btn-outline-secondary flag-btn';
+    btn.className = 'btn sm flag-btn';
     btn.id = 'flag-' + f.name;
     btn.title = f.hint || '';
     btn.innerHTML = `${esc(f.label)}<small>0x${f.mask.toString(16).padStart(2, '0')}</small>`;
     btn.addEventListener('click', () => onFlagClick(f));
     host.appendChild(btn);
   });
+  // Unmute always sends "mute off". The MUTE button toggles from the state it last
+  // saw, so with an unknown state it can only ever send "mute on".
+  const mute = cfg.flags.find(x => x.name === 'mute');
+  if (mute) {
+    const um = document.createElement('button');
+    um.className = 'btn sm flag-btn';
+    um.id = 'unmuteBtn';
+    um.disabled = true;
+    um.title = 'Sends mute off, even when the current state is unknown';
+    um.innerHTML = 'UNMUTE<small>mute off</small>';
+    um.addEventListener('click', () => sendFlag(mute, false, false));
+    host.appendChild(um);
+  }
 }
 
 function flagOn(f) {
@@ -151,13 +153,13 @@ function render() {
   const live = !!state.session;
 
   const pill = $('sessionPill');
-  pill.className = 'status-pill ' + (live ? 'status-pill-online' : 'status-pill-offline');
+  pill.className = 'badge ' + (live ? 'ok' : 'err');
   pill.innerHTML = live
     ? '<i class="fa-solid fa-plug-circle-check"></i> connected'
     : '<i class="fa-solid fa-plug-circle-xmark"></i> disconnected';
 
   const btn = $('connectBtn');
-  btn.className = 'btn btn-sm ' + (es ? 'btn-outline-warning' : 'btn-success');
+  btn.className = 'btn sm ' + (es ? 'ghost' : 'primary');
   btn.innerHTML = es
     ? '<i class="fa-solid fa-link-slash"></i> Disconnect'
     : '<i class="fa-solid fa-link"></i> Connect';
@@ -167,13 +169,13 @@ function render() {
 
   const inp = $('inputPill');
   if (!state.have_flags) {
-    inp.className = 'status-pill status-pill-pending';
+    inp.className = 'badge muted';
     $('inputText').textContent = 'input unknown';
   } else if (state.plugged) {
-    inp.className = 'status-pill status-pill-online';
+    inp.className = 'badge ok';
     $('inputText').textContent = 'XLR connected';
   } else {
-    inp.className = 'status-pill status-pill-offline';
+    inp.className = 'badge err';
     $('inputText').textContent = 'nothing plugged in';
   }
 
@@ -197,11 +199,11 @@ function render() {
     const b = $('flag-' + f.name);
     if (!b) return;
     const on = flagOn(f);
-    let variant = 'btn-outline-secondary';
-    if (on) variant = f.danger ? 'btn-danger' : (f.name === 'mute' ? 'btn-warning' : 'btn-success');
-    b.className = 'btn btn-sm flag-btn ' + variant + (live ? '' : ' stale');
+    b.className = 'btn sm flag-btn' + (on ? ' on' : '') + (live ? '' : ' stale');
     b.disabled = !live || (f.danger && cfg.lock_48v && !on);
   });
+  const um = $('unmuteBtn');
+  if (um) { um.className = 'btn sm flag-btn' + (live ? '' : ' stale'); um.disabled = !live; }
 
   // Info tiles
   $('infoDetect').textContent = state.have_flags
@@ -253,20 +255,19 @@ async function sendGain(db) {
   }
 }
 
-let phantomModal = null;
+const phantomModal = $('phantomModal');
 
 function onFlagClick(f) {
   const on = !flagOn(f);
   if (f.danger && on) {
-    phantomModal = phantomModal || new bootstrap.Modal($('phantomModal'));
-    phantomModal.show();
+    phantomModal.showModal();
     return;
   }
   sendFlag(f, on, false);
 }
 
 $('phantomConfirm').addEventListener('click', () => {
-  phantomModal?.hide();
+  phantomModal.close();
   const f = cfg.flags.find(x => x.danger);
   if (f) sendFlag(f, true, true);
 });

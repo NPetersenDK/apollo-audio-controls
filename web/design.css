@@ -1,0 +1,398 @@
+/* design v1.2.0 */
+
+/* ---------- Tokens ---------- */
+:root {
+  --bg: #0b0d11;
+  --panel: #14181e;
+  --panel-2: #1b2129;
+  --text: #f5f7fa;
+  --muted: #9aa4b2;
+  --border: #2a323c;
+  --ok: #3fb950;
+  --warn: #d29922;
+  --err: #f85149;
+  --danger: #da3633;
+  --info: #4c8dff;
+  --nav: #d4dae2;
+  --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* Theme colours (default matches blue). */
+  --accent: #2f6fed;
+  --link: #4c8dff;
+  --accent-soft: color-mix(in srgb, var(--accent) 20%, transparent);
+  /* Accent as a line (focus ring, hover or selected border, active tab). Same as --accent
+     unless a theme's accent is too dark to show as a thin line on --bg. */
+  --accent-edge: var(--accent);
+  /* Surface for things inside a card (log, stat tiles, list items): only slightly
+     darker than --panel, so they read as part of the card and not as a hole in it. */
+  --inset: color-mix(in srgb, var(--panel) 50%, var(--bg));
+  /* Neutral edge for insets inside a card: lighter than --border, no theme colour. */
+  --border-strong: color-mix(in srgb, var(--border) 82%, var(--text));
+  color-scheme: dark;
+}
+/* Theme drafts: set with <html data-theme="..."> */
+[data-theme="blue"] { --accent: #2f6fed; --link: #4c8dff; }
+/* gray: accent is rgb(60, 75, 100); --link is lighter so links stay readable on --bg. */
+[data-theme="gray"] { --accent: #3c4b64; --link: #93a7c7; --accent-edge: #7a91b8; }
+/* Separate --link: the red is too dark for text on --bg. */
+[data-theme="esb"] { --accent: #e30613; --link: #ff6b72; }
+
+/* ---------- Base ---------- */
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.55 system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+}
+a { color: var(--link); text-decoration: none; }
+a:hover { text-decoration: underline; }
+h1, h2, h3 { margin: 0; }
+
+:is(.btn, a, button, input, select, textarea, summary, .tab):focus-visible {
+  outline: 2px solid var(--accent-edge); outline-offset: 2px;
+}
+
+/* ---------- Utilities ---------- */
+.center { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+.muted { color: var(--muted); }
+.small { font-size: 12px; }
+.mono { font-family: var(--mono); }
+.spacer { flex: 1; }
+.grow { flex: 1; }
+.row { display: flex; align-items: center; gap: 12px; }
+.row.wrap { flex-wrap: wrap; row-gap: 6px; }
+/* A flex td drops out of the table row, so action cells stay table cells. */
+td.row { display: table-cell; white-space: nowrap; }
+td.row > * + * { margin-left: 8px; }
+/* Buttons in form rows line up with the inputs' bottom edge. */
+.row.wrap > .btn { align-self: flex-end; }
+/* Choice cards stretch to equal height. */
+.row.wrap > .btn.choice { align-self: stretch; }
+.row.wrap > .switch { align-self: flex-end; padding-bottom: 10px; }
+.stack { display: flex; flex-direction: column; gap: 20px; }
+/* Pull section descriptions up under their heading. */
+.stack > p { margin: 0; }
+.stack > h2 + p.muted,
+.stack > h3 + p.muted,
+.stack > .row + p.muted { margin-top: -14px; }
+/* Same spacing fix inside cards. */
+.card > p { margin: 0; }
+.card > h3 + p.muted { margin-top: -8px; }
+
+/* Toolbar: a row of mixed controls (badges, inputs, buttons) that must sit on one
+   centre line. Unlike .row.wrap it does not push buttons to the bottom edge, and
+   inputs and selects get the same height as .btn.sm. */
+.toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.toolbar input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),
+.toolbar select { padding: 5px 10px; font-size: 13px; }
+
+/* Note: help text under a control or a button row. Normal gap, not pulled up under a
+   heading like .stack > .row + p.muted does. */
+.note { margin: 0; font-size: 12px; color: var(--muted); }
+.stack > .note, .stack > .row + p.note, .stack > .toolbar + p.note { margin-top: 0; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+@media (max-width: 620px) { .grid2 { grid-template-columns: 1fr; } }
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+@media (max-width: 760px) { .grid3 { grid-template-columns: 1fr; } }
+.grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+@media (max-width: 960px) { .grid4 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 560px) { .grid4 { grid-template-columns: 1fr; } }
+.center-text { text-align: center; }
+.nowrap { white-space: nowrap; }
+.right { text-align: right; }
+.table-wrap { overflow-x: auto; }
+.hidden, [hidden] { display: none !important; }
+.sr-only {
+  position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0;
+  overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+}
+
+/* ---------- Layout ---------- */
+.topbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap; row-gap: 6px;
+  padding: 12px 20px; background: var(--panel); border-bottom: 1px solid var(--border);
+}
+.brand { font-weight: 700; color: var(--text); }
+.topbar .brand img { display: block; }
+.nav { display: flex; gap: 14px; margin-left: 16px; align-items: center; }
+.nav a { color: var(--nav); }
+.nav a:hover { color: var(--text); }
+.nav a.active { color: var(--text); font-weight: 600; }
+.topbar .nav a { white-space: nowrap; }
+/* Nav group trigger (a dropdown) - styled like a nav link. */
+.nav-dropdown-toggle {
+  background: none; border: none; padding: 0; cursor: pointer;
+  color: var(--nav); font: inherit;
+}
+.nav-dropdown-toggle:hover { color: var(--text); }
+.content { max-width: 1280px; margin: 0 auto; padding: 24px 20px; }
+/* .app fills the viewport so the footer sits at the bottom even on short pages. */
+.app { min-height: 100vh; display: flex; flex-direction: column; }
+.app .content { width: 100%; flex: 1; }
+.footer {
+  text-align: center; font-size: 12px; padding: 14px 20px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Cards, stats ---------- */
+.card {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px;
+}
+.login { width: 360px; max-width: 100%; }
+.divider { text-align: center; color: var(--muted); margin: 4px 0; }
+.statrow { gap: 12px; }
+.stat {
+  background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+  padding: 12px 18px; min-width: 120px;
+}
+.stat-value { font-size: 24px; font-weight: 700; }
+.stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.stat.sm { padding: 8px 12px; min-width: 90px; }
+.stat.sm .stat-value { font-size: 18px; }
+.stat.sm .stat-label { font-size: 11px; }
+
+/* ---------- Forms ---------- */
+label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
+label.checkbox { flex-direction: row; align-items: center; gap: 8px; color: var(--text); }
+input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]),
+select, textarea {
+  background: var(--panel-2); color: var(--text);
+  border: 1px solid var(--border); border-radius: 8px; padding: 9px 11px; font: inherit;
+}
+input:not([type=range]):not([type=checkbox]):not([type=radio]):not([type=color]):focus,
+select:focus, textarea:focus { border-color: var(--accent-edge); }
+input[type=checkbox], input[type=radio] { accent-color: var(--accent); }
+input[type=color] {
+  width: 44px; height: 34px; padding: 2px; cursor: pointer;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 8px;
+}
+input[type=range] {
+  -webkit-appearance: none; appearance: none; width: 100%; height: 20px;
+  background: transparent; padding: 0; margin: 0; cursor: pointer;
+}
+input[type=range]::-webkit-slider-runnable-track { height: 6px; border-radius: 999px; background: var(--border); }
+input[type=range]::-moz-range-track { height: 6px; border-radius: 999px; background: var(--border); }
+input[type=range]::-webkit-slider-thumb {
+  -webkit-appearance: none; width: 16px; height: 16px; margin-top: -5px;
+  border-radius: 50%; background: var(--accent); border: 2px solid var(--bg);
+}
+input[type=range]::-moz-range-thumb {
+  width: 12px; height: 12px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg);
+}
+/* Toggle switch: a checkbox styled as a slider (row overrides the label rule). */
+.switch { display: inline-flex; flex-direction: row; align-items: center; gap: 8px; cursor: pointer; font-size: 13px; }
+.switch input {
+  appearance: none; -webkit-appearance: none; margin: 0; cursor: pointer;
+  width: 34px; height: 20px; border-radius: 999px; background: var(--border);
+  position: relative; transition: background 0.15s ease; flex: none;
+}
+.switch input:checked { background: var(--accent); }
+.switch input::before {
+  content: ""; position: absolute; top: 2px; left: 2px; width: 16px; height: 16px;
+  border-radius: 50%; background: #fff; transition: transform 0.15s ease;
+}
+.switch input:checked::before { transform: translateX(14px); }
+/* Advanced fold on create forms. */
+details.advanced summary { cursor: pointer; color: var(--muted); font-size: 13px; user-select: none; }
+details.advanced[open] summary { margin-bottom: 12px; }
+
+/* ---------- Buttons ---------- */
+.btn {
+  background: var(--panel-2); color: var(--text); border: 1px solid var(--border);
+  border-radius: 8px; padding: 9px 14px; font: inherit; cursor: pointer;
+}
+.btn:hover { border-color: var(--accent-edge); }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn.danger { background: var(--danger); border-color: var(--danger); color: #fff; }
+.btn.ghost { background: transparent; }
+.btn.ghost.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+/* Login buttons are anchors: flex centers the icon + label pair. */
+.btn.block { width: 100%; display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-decoration: none; }
+.btn.block:hover { text-decoration: none; }
+.btn.sm { padding: 5px 10px; font-size: 13px; }
+.btn:disabled { opacity: 0.6; cursor: default; }
+/* Big choice button with a hint line. */
+.btn.choice {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
+  text-align: left; flex: 1 1 260px; align-self: stretch;
+}
+.btn.choice .choice-hint { color: var(--muted); font-size: 12px; }
+/* Links styled as buttons. */
+a.btn { color: var(--text); text-decoration: none; display: inline-block; }
+a.btn:hover { text-decoration: none; }
+a.btn.primary, a.btn.danger { color: #fff; }
+a.btn.ghost.danger { color: var(--danger); }
+
+/* ---------- Tables ---------- */
+.table { width: 100%; border-collapse: collapse; }
+.table th, .table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.table th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+.table tr.clickable { cursor: pointer; }
+.table tr.clickable:hover td { background: var(--panel-2); }
+.table td.num, .table th.num { text-align: right; font-variant-numeric: tabular-nums; }
+/* Sortable headers: th.sort with aria-sort and an <i class="fa-solid fa-sort">.
+   Active column: fa-arrow-up / fa-arrow-down. Not a Tab stop on purpose. */
+.table th.sort { cursor: pointer; user-select: none; white-space: nowrap; }
+.table th.sort:hover { color: var(--text); }
+.table th.sort i { margin-left: 6px; font-size: 11px; opacity: .35; }
+.table th.sort[aria-sort="ascending"] i,
+.table th.sort[aria-sort="descending"] i { opacity: 1; color: var(--text); }
+
+/* Clickable rows have two modes, chosen per table:
+   1. Expand: add <td class="chev"> first in the row, toggle .open on the row,
+      and put a <tr class="rowdetail"> with the details directly after it.
+   2. Modal: no chevron; the click opens a <dialog class="modal">. */
+.table td.chev { width: 28px; color: var(--muted); }
+.table td.chev i { font-size: 11px; transition: transform .15s ease; }
+.table tr.clickable.open td { background: var(--panel-2); }
+.table tr.clickable.open td.chev i { transform: rotate(90deg); color: var(--text); }
+.table tr.rowdetail td { background: rgba(255, 255, 255, 0.02); }
+.rowdetail-grid { display: flex; flex-wrap: wrap; gap: 6px 24px; font-size: 12.5px; padding: 2px 0 4px; }
+
+/* ---------- Chips ---------- */
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips.scroll { max-height: 9rem; overflow-y: auto; }
+.chip {
+  display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
+  padding: 3px 10px; border: 1px solid var(--border); border-radius: 999px;
+  background: none; color: var(--text); font: inherit; font-size: 12px; cursor: pointer;
+}
+.chip:hover { border-color: var(--accent-edge); }
+.chip i { color: var(--muted); font-size: 10px; }
+.chip.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ---------- Tabs (CSS only; switching stays in app JS) ---------- */
+.tabs { display: flex; flex-wrap: wrap; gap: 4px; border-bottom: 1px solid var(--border); }
+.tab {
+  background: none; border: 0; border-bottom: 2px solid transparent; margin-bottom: -1px;
+  color: var(--muted); padding: 8px 14px; font: inherit; cursor: pointer; text-decoration: none;
+}
+.tab:hover { color: var(--text); text-decoration: none; }
+.tab.on { color: var(--text); border-bottom-color: var(--accent-edge); font-weight: 600; }
+
+/* ---------- Modals ---------- */
+.modal-overlay {
+  position: fixed; inset: 0; z-index: 100;
+  background: rgba(0, 0, 0, 0.6);
+  display: grid; place-items: center; padding: 24px;
+}
+.modal {
+  background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; padding: 28px; max-width: 520px; text-align: center;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 14px;
+}
+.modal h2 { margin: 0; }
+/* Text-heavy dialogs (confirmations, notices): wider + left-aligned. */
+.modal.wide { max-width: 560px; text-align: left; }
+/* Native <dialog class="modal">: open with showModal(), close with close(). */
+dialog.modal { color: var(--text); margin: auto; width: calc(100% - 32px); }
+dialog.modal:not([open]) { display: none; }
+dialog.modal::backdrop { background: rgba(0, 0, 0, 0.6); }
+/* Error popup (dsError): left-aligned text. */
+dialog.modal.err { text-align: left; max-width: 480px; }
+dialog.modal.err h2 { color: var(--err); }
+dialog.modal.err form { display: flex; justify-content: flex-end; }
+
+/* ---------- Dropdown ---------- */
+.dropdown { position: relative; }
+.user-profile-button {
+  background: var(--accent);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 20px;
+  white-space: nowrap;
+}
+/* Flat accent, like .btn.primary. */
+.user-profile-button:hover {
+  background: color-mix(in srgb, var(--accent) 85%, #000);
+}
+.dropdown-menu {
+  position: absolute; right: 0; top: calc(100% + 8px); z-index: 50;
+  min-width: 200px; padding: 6px;
+  background: var(--panel-2); border: 1px solid var(--border);
+  border-radius: 10px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  display: flex; flex-direction: column;
+}
+.dropdown-header {
+  padding: 6px 10px; font-size: 12px; color: var(--muted);
+  text-transform: uppercase; letter-spacing: 0.04em;
+}
+.dropdown-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 10px; border: none; background: none; cursor: pointer;
+  color: var(--text); font: inherit; text-align: left; border-radius: 6px;
+}
+.dropdown-item:hover { background: var(--accent-soft); text-decoration: none; }
+.dropdown-divider { border: none; border-top: 1px solid var(--border); margin: 4px 0; width: auto; }
+
+/* Flat accent login button. */
+.login-button {
+  background: var(--accent);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 20px;
+  text-decoration: none;
+}
+.login-button:hover {
+  background: color-mix(in srgb, var(--accent) 85%, #000);
+  text-decoration: none;
+}
+
+/* ---------- Text status ---------- */
+.error { color: var(--err); font-size: 13px; }
+.warn { color: var(--warn); font-size: 13px; }
+.success { color: var(--ok); font-size: 13px; }
+
+/* ---------- Badges (after text status: .badge must win the font size) ---------- */
+.badge { display: inline-block; padding: 2px 8px; border-radius: 999px; font-size: 12px; border: 1px solid var(--border); white-space: nowrap; }
+.badge.ok { color: var(--ok); border-color: var(--ok); }
+.badge.warn { color: var(--warn); border-color: var(--warn); }
+.badge.err { color: var(--err); border-color: var(--err); }
+.badge.info { color: var(--info); border-color: var(--info); }
+.badge.muted { color: var(--muted); border-color: var(--border); }
+
+/* ---------- Alerts ---------- */
+.alert {
+  padding: 10px 14px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--panel-2); font-size: 14px;
+}
+.alert.ok { border-color: var(--ok); color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, transparent); }
+.alert.warn { border-color: var(--warn); color: var(--warn); background: color-mix(in srgb, var(--warn) 10%, transparent); }
+.alert.err { border-color: var(--err); color: var(--err); background: color-mix(in srgb, var(--err) 10%, transparent); }
+.alert.info { border-color: var(--info); color: var(--info); background: color-mix(in srgb, var(--info) 10%, transparent); }
+
+/* ---------- Log ---------- */
+/* Log / console: terminal-like. Works on a <pre> (keeps spacing) or on a div of
+   .log-entry lines. Give it a height where needed, for example height: 300px. */
+.log {
+  background: var(--bg); border: 1px solid var(--border); border-radius: 8px;
+  padding: 8px 10px; font-family: var(--mono); font-size: 12px;
+  line-height: 1.25; margin: 0;
+  max-height: 20rem; overflow: auto;
+}
+/* Only a <pre> keeps its spacing; a div of .log-entry lines must not, or the
+   line breaks between the divs would show as blank lines. */
+pre.log { white-space: pre-wrap; }
+/* One surface rule: inside a card, things that need a surface get a slightly darker
+   fill and a neutral edge, so you can see where each one ends without another colour.
+   The theme colour is kept for things you can click or select (hover, the selected item). */
+.card .log, .card .stat { background: var(--inset); border-color: var(--border-strong); }
+.log-entry { padding: 2px 0; font-size: 12px; color: var(--text); overflow-wrap: anywhere; }
+.log-entry.ok { color: var(--ok); }
+.log-entry.warn { color: var(--warn); }
+.log-entry.err { color: var(--err); }
+.log-entry.debug { color: var(--muted); }
+
+/* ---------- Toasts (see design.js: dsToast) ---------- */
+.toast-area {
+  position: fixed; right: 16px; bottom: 16px; z-index: 200;
+  display: flex; flex-direction: column; gap: 8px; max-width: calc(100% - 32px);
+}
+.toast {
+  background: var(--panel-2); color: var(--text); font-size: 14px;
+  border: 1px solid var(--border); border-left: 4px solid var(--info); border-radius: 8px;
+  padding: 10px 14px; min-width: 220px; box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+}
+.toast.ok { border-left-color: var(--ok); }
+.toast.warn { border-left-color: var(--warn); }
+.toast.err { border-left-color: var(--err); }
+.toast.info { border-left-color: var(--info); }

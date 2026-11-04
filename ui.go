@@ -12,6 +12,12 @@ import (
 //go:embed web/index.html
 var indexHTML string
 
+//go:embed web/design.css
+var designCSS string
+
+//go:embed web/design.js
+var designJS string
+
 //go:embed web/app.css
 var appCSS string
 
@@ -63,6 +69,14 @@ func (s *Server) Routes(mux *http.ServeMux) {
 		html := strings.ReplaceAll(indexHTML, "{{VERSION}}", version)
 		html = strings.ReplaceAll(html, "{{BASE}}", base)
 		_, _ = w.Write([]byte(html))
+	})
+	mux.HandleFunc("GET "+base+"/design.css", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		_, _ = w.Write([]byte(designCSS))
+	})
+	mux.HandleFunc("GET "+base+"/design.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		_, _ = w.Write([]byte(designJS))
 	})
 	mux.HandleFunc("GET "+base+"/app.css", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/css; charset=utf-8")
