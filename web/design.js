@@ -1,4 +1,4 @@
-/* design v1.2.0
+/* design v1.3.0
    dsToast(message, kind)          kind is ok | warn | err | info
    dsError(message, title)         popup error (modal), Esc or button closes it
    dsRowClick(tbody, handler)       calls handler(tr) when a tr.clickable is clicked; clicks on links,

@@ -1,19 +1,19 @@
-/* design v1.2.0 */
+/* design v1.3.0 */
 
 /* ---------- Tokens ---------- */
 :root {
   --bg: #0b0d11;
   --panel: #14181e;
   --panel-2: #1b2129;
-  --text: #f5f7fa;
-  --muted: #9aa4b2;
+  --text: #fff;
+  --muted: #fff;
   --border: #2a323c;
   --ok: #3fb950;
   --warn: #d29922;
   --err: #f85149;
   --danger: #da3633;
   --info: #4c8dff;
-  --nav: #d4dae2;
+  --nav: #fff;
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
   /* Theme colours (default matches blue). */
   --accent: #2f6fed;
@@ -88,7 +88,9 @@ td.row > * + * { margin-left: 8px; }
 
 /* Note: help text under a control or a button row. Normal gap, not pulled up under a
    heading like .stack > .row + p.muted does. */
-.note { margin: 0; font-size: 12px; color: var(--muted); }
+.note { margin: 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
+/* Variables like $1 stay in the running text: no box, no monospace. */
+.note code { font-family: inherit; font-size: inherit; font-weight: 600; }
 .stack > .note, .stack > .row + p.note, .stack > .toolbar + p.note { margin-top: 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 620px) { .grid2 { grid-template-columns: 1fr; } }
