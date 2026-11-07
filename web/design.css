@@ -1,4 +1,4 @@
-/* design v1.4.0 */
+/* design v1.5.0 */
 
 /* ---------- Tokens ---------- */
 :root {
@@ -15,6 +15,9 @@
   --info: #4c8dff;
   --nav: #fff;
   --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+  /* The two sides of a match, for score bars, round cells and team names. Not theme colours. */
+  --team-a: #2f6fd6;
+  --team-b: #c9822b;
   /* Theme colours (default matches blue). */
   --accent: #2f6fed;
   --link: #4c8dff;
@@ -141,7 +144,7 @@ td.row > * + * { margin-left: 8px; }
   background: var(--panel); border: 1px solid var(--border);
   border-radius: 10px; padding: 20px; display: flex; flex-direction: column; gap: 14px;
 }
-.login { width: 360px; max-width: 100%; }
+.login { width: 360px; max-width: 100%; margin-inline: auto; }
 .divider { text-align: center; color: var(--muted); margin: 4px 0; }
 .statrow { gap: 12px; }
 .stat {
@@ -153,6 +156,17 @@ td.row > * + * { margin-left: 8px; }
 .stat.sm { padding: 8px 12px; min-width: 90px; }
 .stat.sm .stat-value { font-size: 18px; }
 .stat.sm .stat-label { font-size: 11px; }
+
+/* Key and value. .kv is one row: key left, value right. dl.kv is a two column list
+   of keys and values. */
+.kv { display: flex; justify-content: space-between; gap: 12px; }
+.kv span { color: var(--muted); }
+dl.kv { display: grid; grid-template-columns: max-content 1fr; justify-content: start; gap: 6px 16px; margin: 0; }
+dl.kv dt { color: var(--muted); }
+dl.kv dd { margin: 0; overflow-wrap: anywhere; }
+
+/* A plain list: no bullets, no indent, a small gap between items. */
+ul.list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 
 /* ---------- Forms ---------- */
 label { display: flex; flex-direction: column; gap: 6px; font-size: 13px; color: var(--muted); }
@@ -353,6 +367,8 @@ dialog.modal.err form { display: flex; justify-content: flex-end; }
 /* Tags (groups, games, sources): the theme colour, so red in esb, blue in blue. */
 .badge.accent { color: var(--link); border-color: var(--accent-edge); }
 .badge.muted { color: var(--muted); border-color: var(--border); }
+/* A badge that is a link: keeps the badge look, the edge lights up on hover. */
+a.badge:hover { border-color: var(--accent-edge); text-decoration: none; }
 
 /* ---------- Alerts ---------- */
 .alert {
