@@ -1,4 +1,4 @@
-/* design v1.5.0 */
+/* design v1.6.0 */
 
 /* ---------- Tokens ---------- */
 :root {
@@ -50,6 +50,15 @@ body {
 a { color: var(--link); text-decoration: none; }
 a:hover { text-decoration: underline; }
 h1, h2, h3 { margin: 0; }
+/* A rule between blocks. The flex gap of .stack and .card gives it its spacing. */
+hr { border: 0; border-top: 1px solid var(--border); margin: 0; width: 100%; }
+/* Inline code: a small mono chip (commands, paths, hostnames). Not inside a log or a
+   note, see those rules. */
+code, kbd {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--panel-2); border: 1px solid var(--border); border-radius: 6px; padding: 1px 6px;
+}
+.log code, pre code { background: none; border: 0; padding: 0; font-size: inherit; }
 
 :is(.btn, a, button, input, select, textarea, summary, .tab):focus-visible {
   outline: 2px solid var(--accent-edge); outline-offset: 2px;
@@ -72,7 +81,13 @@ td.row > * + * { margin-left: 8px; }
 /* Choice cards stretch to equal height. */
 .row.wrap > .btn.choice { align-self: stretch; }
 .row.wrap > .switch { align-self: flex-end; padding-bottom: 10px; }
+/* Alignment and gap modifiers, so no row needs an inline style. */
+.row.end, .toolbar.end { justify-content: flex-end; }
+.row.center { justify-content: center; }
+.row.between { justify-content: space-between; }
+.row.tight, .toolbar.tight { gap: 6px; }
 .stack { display: flex; flex-direction: column; gap: 20px; }
+.stack.tight { gap: 8px; }
 /* Pull section descriptions up under their heading. */
 .stack > p { margin: 0; }
 .stack > h2 + p.muted,
@@ -88,12 +103,15 @@ td.row > * + * { margin-left: 8px; }
 .toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .toolbar input:not([type=checkbox]):not([type=radio]):not([type=range]):not([type=color]),
 .toolbar select { padding: 5px 10px; font-size: 13px; }
+/* The search field in a toolbar: one width everywhere, full width on a phone. */
+input.search { width: 220px; max-width: 100%; }
+@media (max-width: 576px) { input.search { width: 100%; } }
 
 /* Note: help text under a control or a button row. Normal gap, not pulled up under a
    heading like .stack > .row + p.muted does. */
 .note { margin: 0; font-size: 14px; line-height: 1.6; color: var(--muted); }
 /* Variables like $1 stay in the running text: no box, no monospace. */
-.note code { font-family: inherit; font-size: inherit; font-weight: 600; }
+.note code { font-family: inherit; font-size: inherit; font-weight: 600; background: none; border: 0; padding: 0; }
 .stack > .note, .stack > .row + p.note, .stack > .toolbar + p.note { margin-top: 0; }
 .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 @media (max-width: 620px) { .grid2 { grid-template-columns: 1fr; } }
@@ -102,9 +120,17 @@ td.row > * + * { margin-left: 8px; }
 .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 @media (max-width: 960px) { .grid4 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .grid4 { grid-template-columns: 1fr; } }
+/* As many columns as fit. The app sets the column minimum in its own class:
+   .station-grid { --min: 280px; } */
+.grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--min, 220px), 1fr)); gap: 14px; }
 .center-text { text-align: center; }
 .nowrap { white-space: nowrap; }
 .right { text-align: right; }
+.truncate { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+/* Data that is no longer current (connection lost, last known value). */
+.stale { opacity: .5; }
+/* Nothing to show: a centred muted line in place of a list or table body. */
+.empty { text-align: center; padding: 24px 0; color: var(--muted); }
 .table-wrap { overflow-x: auto; }
 .hidden, [hidden] { display: none !important; }
 .sr-only {
@@ -152,6 +178,9 @@ td.row > * + * { margin-left: 8px; }
   padding: 12px 18px; min-width: 120px;
 }
 .stat-value { font-size: 24px; font-weight: 700; }
+/* A number that is a status in itself (a win rate, a negative balance). */
+.stat-value.ok { color: var(--ok); }
+.stat-value.err { color: var(--err); }
 .stat-label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
 .stat.sm { padding: 8px 12px; min-width: 90px; }
 .stat.sm .stat-value { font-size: 18px; }
@@ -228,22 +257,76 @@ details.advanced[open] summary { margin-bottom: 12px; }
 .btn.block:hover { text-decoration: none; }
 .btn.sm { padding: 5px 10px; font-size: 13px; }
 .btn:disabled { opacity: 0.6; cursor: default; }
-/* Big choice button with a hint line. */
+.btn:disabled:hover { border-color: var(--border); }
+/* A toggle that is switched on (flags, filters): the same fill as .chip.on. */
+.btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+/* Square button holding only an icon (plus, minus, zoom). */
+.btn.icon { width: 36px; padding-left: 0; padding-right: 0; text-align: center; flex: none; }
+.btn.sm.icon { width: 30px; }
+/* Big choice button with a hint line. Optional <i> icon and <b> title. */
 .btn.choice {
   display: flex; flex-direction: column; align-items: flex-start; gap: 3px;
   text-align: left; flex: 1 1 260px; align-self: stretch;
 }
 .btn.choice .choice-hint { color: var(--muted); font-size: 12px; }
+.btn.choice i { font-size: 28px; color: var(--link); }
+.btn.choice b, .btn.choice strong { font-size: 18px; }
+.btn.choice.on { border-color: var(--accent-edge); background: var(--accent-soft); }
+/* A grid of choice buttons (wizard steps, landing pages): bigger padding, equal height. */
+.choice-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; }
+.choice-grid > .btn.choice { flex: none; min-height: 130px; padding: 22px; gap: 8px; }
+.choice-grid.compact { grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); gap: 10px; }
+.choice-grid.compact > .btn.choice { min-height: 0; padding: 16px 12px; gap: 6px; }
+.choice-grid.compact > .btn.choice i { font-size: 24px; }
+.choice-grid.compact > .btn.choice b { font-size: 16px; }
 /* Links styled as buttons. */
 a.btn { color: var(--text); text-decoration: none; display: inline-block; }
 a.btn:hover { text-decoration: none; }
 a.btn.primary, a.btn.danger { color: #fff; }
 a.btn.ghost.danger { color: var(--danger); }
 
+/* ---------- Segmented control ---------- */
+/* One frame, flat buttons, the chosen one filled. For a small set of exclusive
+   choices (view mode, a 1 to 10 rating). .sm for many narrow segments. */
+.segmented { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.segmented > button, .segmented > a {
+  background: transparent; color: var(--muted); border: 0; border-left: 1px solid var(--border);
+  padding: 7px 14px; font: inherit; font-size: 13px; line-height: 1.2; cursor: pointer; text-decoration: none;
+}
+.segmented > :first-child { border-left: 0; }
+.segmented > button:hover, .segmented > a:hover { background: var(--panel-2); color: var(--text); text-decoration: none; }
+.segmented > .on { background: var(--accent); color: #fff; }
+.segmented.sm > button, .segmented.sm > a { padding: 4px 9px; font-size: 12px; }
+
+/* ---------- Item: a selectable row ---------- */
+/* Pickers, search results, station lists. Inset surface, the edge lights up on
+   hover, .on marks the chosen one. Works as a button, a link or a div. */
+.item {
+  display: flex; align-items: center; gap: 10px; width: 100%; min-width: 0;
+  padding: 7px 10px; background: var(--inset); color: var(--text);
+  border: 1px solid var(--border-strong); border-radius: 8px;
+  font: inherit; text-align: left; text-decoration: none; cursor: pointer;
+}
+.item:hover { border-color: var(--accent-edge); background: var(--panel-2); text-decoration: none; }
+.item.on { border-color: var(--accent-edge); box-shadow: 0 0 0 1px var(--accent-edge); }
+
+/* ---------- Progress and meter ---------- */
+/* Progress: a thin bar filled from the left in --ok. The app sets the fill width. */
+.progress { height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+.progress-fill { height: 100%; width: 0; background: var(--ok); transition: width .3s linear; }
+/* Meter (audio level): the whole scale as a gradient, covered from the right down to
+   the current level. The app sets --lvl (0 to 100) on the .meter element. */
+.meter {
+  height: 4px; border-radius: 2px; overflow: hidden; display: flex; justify-content: flex-end;
+  background: linear-gradient(90deg, var(--ok) 0%, var(--warn) 80%, var(--err) 100%);
+}
+.meter-cover { height: 100%; width: calc((100 - var(--lvl, 0)) * 1%); background: var(--border); transition: width .1s linear; }
+
 /* ---------- Tables ---------- */
 .table { width: 100%; border-collapse: collapse; }
-.table th, .table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+.table th, .table td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 .table th { color: var(--muted); font-weight: 600; font-size: 12px; text-transform: uppercase; }
+.table td.empty { padding: 16px 10px; }
 .table tr.clickable { cursor: pointer; }
 .table tr.clickable:hover td { background: var(--panel-2); }
 .table td.num, .table th.num { text-align: right; font-variant-numeric: tabular-nums; }
@@ -286,6 +369,7 @@ a.btn.ghost.danger { color: var(--danger); }
 }
 .tab:hover { color: var(--text); text-decoration: none; }
 .tab.on { color: var(--text); border-bottom-color: var(--accent-edge); font-weight: 600; }
+.tab:disabled { opacity: .4; cursor: default; }
 
 /* ---------- Modals ---------- */
 .modal-overlay {
@@ -301,10 +385,15 @@ a.btn.ghost.danger { color: var(--danger); }
 .modal h2 { margin: 0; }
 /* Text-heavy dialogs (confirmations, notices): wider + left-aligned. */
 .modal.wide { max-width: 560px; text-align: left; }
+/* Detail and search dialogs: wide, scrolls inside. */
+.modal.lg { max-width: 760px; max-height: 90vh; overflow-y: auto; text-align: left; }
+.modal .log { text-align: left; }
 /* Native <dialog class="modal">: open with showModal(), close with close(). */
 dialog.modal { color: var(--text); margin: auto; width: calc(100% - 32px); }
 dialog.modal:not([open]) { display: none; }
 dialog.modal::backdrop { background: rgba(0, 0, 0, 0.6); }
+/* Confirm popup (dsConfirm, react/Confirm): the message may hold line breaks. */
+.ds-confirm-msg { white-space: pre-line; }
 /* Error popup (dsError): left-aligned text. */
 dialog.modal.err { text-align: left; max-width: 480px; }
 dialog.modal.err h2 { color: var(--err); }
@@ -367,8 +456,14 @@ dialog.modal.err form { display: flex; justify-content: flex-end; }
 /* Tags (groups, games, sources): the theme colour, so red in esb, blue in blue. */
 .badge.accent { color: var(--link); border-color: var(--accent-edge); }
 .badge.muted { color: var(--muted); border-color: var(--border); }
-/* A badge that is a link: keeps the badge look, the edge lights up on hover. */
+/* A badge that is a link or a button: keeps the badge look, the edge lights up on hover. */
 a.badge:hover { border-color: var(--accent-edge); text-decoration: none; }
+button.badge { background: none; color: var(--text); font: inherit; font-size: 12px; line-height: inherit; cursor: pointer; }
+button.badge:hover { border-color: var(--accent-edge); }
+/* Something happening right now (recording, on air): the badge breathes. */
+.badge.live { animation: ds-pulse 2s infinite; }
+@keyframes ds-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .6; } }
+@media (prefers-reduced-motion: reduce) { .badge.live { animation: none; } }
 
 /* ---------- Alerts ---------- */
 .alert {
@@ -416,3 +511,13 @@ pre.log { white-space: pre-wrap; }
 .toast.warn { border-left-color: var(--warn); }
 .toast.err { border-left-color: var(--err); }
 .toast.info { border-left-color: var(--info); }
+
+/* ---------- Access denied page ---------- */
+/* <main class="card denied"> inside .center, with the claims in a .log > dl.
+   Template in mockups/shared/denied.html. */
+.denied { width: 34rem; max-width: 100%; border-top: 3px solid var(--err); }
+.denied dl { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 8px 20px; font-size: 14px; overflow-wrap: anywhere; }
+.denied dt { color: var(--muted); }
+.denied dd { margin: 0; font-family: var(--mono); }
+.denied dd .muted { font-style: italic; font-family: inherit; }
+.denied .log { padding: 14px 18px; }

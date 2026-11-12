@@ -2,12 +2,9 @@
 .gain-readout { font-size: 42px; line-height: 1; font-weight: 600; font-variant-numeric: tabular-nums; }
 .gain-readout .gain-unit { font-size: 16px; font-weight: 400; color: var(--muted); margin-left: 4px; }
 .gain-readout .gain-meta { font-size: 13px; font-weight: 400; color: var(--muted); margin-left: 8px; }
-.gain-step { width: 36px; padding-left: 0; padding-right: 0; }
 .gain-row input[type=range] { flex: 1; min-width: 0; }
-.device-field { width: 170px; font-family: var(--mono); }
+.device-field { width: 170px; }
+/* Switch buttons: the label and the bitmask on two lines. */
 .flag-btn { min-width: 88px; font-weight: 600; }
 .flag-btn small { display: block; font-weight: 400; font-size: 11px; opacity: .75; }
-.flag-btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
-.stale { opacity: .5; }
-.log { height: 300px; }
-.stat-value { font-size: 14px; }
+#log { height: 300px; }
