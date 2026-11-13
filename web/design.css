@@ -120,8 +120,8 @@ input.search { width: 220px; max-width: 100%; }
 .grid4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
 @media (max-width: 960px) { .grid4 { grid-template-columns: 1fr 1fr; } }
 @media (max-width: 560px) { .grid4 { grid-template-columns: 1fr; } }
-/* As many columns as fit. The app sets the column minimum in its own class:
-   .station-grid { --min: 280px; } */
+/* As many columns as fit. The app sets the column minimum in a class of its own,
+   for example --min: 280px on its tile grid. */
 .grid-auto { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--min, 220px), 1fr)); gap: 14px; }
 .center-text { text-align: center; }
 .nowrap { white-space: nowrap; }
@@ -383,6 +383,8 @@ a.btn.ghost.danger { color: var(--danger); }
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5); display: flex; flex-direction: column; gap: 14px;
 }
 .modal h2 { margin: 0; }
+/* The modal's flex gap spaces its paragraphs. */
+.modal > p { margin: 0; }
 /* Text-heavy dialogs (confirmations, notices): wider + left-aligned. */
 .modal.wide { max-width: 560px; text-align: left; }
 /* Detail and search dialogs: wide, scrolls inside. */
