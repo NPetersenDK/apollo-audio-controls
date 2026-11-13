@@ -3,7 +3,9 @@
    dsError(message, title)          popup error (modal), Esc or button closes it
    dsConfirm(message, opts)         popup question; resolves true for OK, false for Cancel or Esc.
                                     opts = { title, ok, cancel, danger }; danger makes OK a red button
-   dsTabs(root)                     wires .tab[data-tab] in root to the [data-panel] elements with the
+   dsPrompt(message, opts)          popup with one input; resolves the text for OK, null for Cancel or Esc.
+                                    opts = { title, ok, cancel, value, type, placeholder }
+   dsTabs(root)                    wires .tab[data-tab] in root to the [data-panel] elements with the
                                     same name: .on on the tab, hidden on every other panel
    dsRowClick(tbody, handler)       calls handler(tr) when a tr.clickable is clicked; clicks on links,
                                     buttons and inputs inside the row are ignored
@@ -69,6 +71,39 @@ function dsConfirm(message, opts) {
     if (!d.open) d.showModal();
     /* A destructive question starts on Cancel, so Enter does not delete by accident. */
     (opts.danger ? cancel : ok).focus();
+  });
+}
+
+function dsPrompt(message, opts) {
+  opts = opts || {};
+  var d = document.getElementById("ds-prompt-dialog");
+  if (!d) {
+    d = document.createElement("dialog");
+    d.id = "ds-prompt-dialog";
+    d.className = "modal wide";
+    d.innerHTML = '<h2></h2><form method="dialog" class="stack tight">' +
+      '<label><span class="ds-prompt-msg"></span><input></label>' +
+      '<div class="row end"><button class="btn ghost" value="cancel" formnovalidate></button>' +
+      '<button class="btn primary" value="ok"></button></div></form>';
+    document.body.appendChild(d);
+  }
+  var input = d.querySelector("input");
+  d.querySelector("h2").textContent = opts.title || "Enter a value";
+  d.querySelector(".ds-prompt-msg").textContent = message;
+  d.querySelector('[value="cancel"]').textContent = opts.cancel || "Cancel";
+  d.querySelector('[value="ok"]').textContent = opts.ok || "OK";
+  input.type = opts.type || "text";
+  input.placeholder = opts.placeholder || "";
+  input.value = opts.value || "";
+  return new Promise(function (resolve) {
+    d.onclose = function () {
+      var yes = d.returnValue === "ok";
+      d.returnValue = "";
+      resolve(yes ? input.value : null);
+      input.value = "";
+    };
+    if (!d.open) d.showModal();
+    input.focus();
   });
 }
 
